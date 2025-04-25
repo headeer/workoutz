@@ -86,19 +86,17 @@ export function WorkoutList({ trainingId, workouts, onExerciseComplete, onStartT
 
   return (
     <Container>
-      {workouts.map((workout) => (
-        <div key={workout.id}>
-          <Title order={2} mb="md">{workout.name}</Title>
-          {workout.sections.map((section) => (
-            <WorkoutSection
-              key={section.id}
-              section={section}
-              onExerciseComplete={handleExerciseComplete}
-              onStartTimer={onStartTimer}
-            />
-          ))}
-        </div>
-      ))}
+      <Title order={2} mb="md">{workout.name}</Title>
+      <Accordion>
+        {workout.sections.map((section) => (
+          <WorkoutSection
+            key={section.id}
+            section={section}
+            onExerciseComplete={handleExerciseComplete}
+            onStartTimer={onStartTimer}
+          />
+        ))}
+      </Accordion>
     </Container>
   );
 } 
