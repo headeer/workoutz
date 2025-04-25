@@ -48,13 +48,17 @@ export default function PiotrWorkouts() {
             *,
             sections (
               *,
-              exercises (*)
+              exercises (
+                *,
+                exercise_sets (*)
+              )
             )
           `)
           .eq('user_name', 'piotrek')
           .order('day_trigger', { ascending: true });
 
         if (error) throw error;
+        console.log('Fetched workouts:', data);
         setWorkouts(data || []);
       } catch (error) {
         console.error('Error fetching workouts:', error);
