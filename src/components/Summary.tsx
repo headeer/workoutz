@@ -70,7 +70,7 @@ export function Summary() {
 
   const getProgressInsights = (user: 'tomasz' | 'piotrek') => {
     const progress = userProgress[user];
-    const insights = [];
+    const insights: string[] = [];
 
     // Basic achievements
     if (progress.completedWeeks > 0) {
@@ -101,24 +101,20 @@ export function Summary() {
 
   const getNextSteps = (user: 'tomasz' | 'piotrek') => {
     const progress = userProgress[user];
-    const steps = [];
+    const steps: string[] = [];
 
     if (progress.completedWeeks === 0) {
       steps.push("Focus on learning proper form for each exercise");
       steps.push("Aim to complete at least 2 workouts per week");
       steps.push("Start tracking your weights and reps");
     } else if (progress.completedWeeks < 4) {
-      steps.push("Try to increase weights by 2.5kg every 2 weeks");
-      steps.push("Aim for 3-4 workouts per week");
-      steps.push("Start tracking your rest times between sets");
-    } else if (progress.completedWeeks < 8) {
-      steps.push("Consider adding 1-2 new exercises to your routine");
-      steps.push("Focus on progressive overload in your main lifts");
-      steps.push("Start tracking your workout duration");
+      steps.push("Increase workout frequency to 3-4 times per week");
+      steps.push("Focus on progressive overload");
+      steps.push("Track your rest periods between sets");
     } else {
-      steps.push("Consider a deload week to prevent overtraining");
-      steps.push("Review and adjust your training program");
-      steps.push("Set new personal records for your main lifts");
+      steps.push("Consider adding advanced techniques");
+      steps.push("Focus on mind-muscle connection");
+      steps.push("Optimize your nutrition and recovery");
     }
 
     return steps;
@@ -157,88 +153,85 @@ export function Summary() {
 
   return (
     <Container size="lg" py="xl">
-      <Title order={1} align="center" mb="xl">
-        Training Summary
-      </Title>
+      <Title order={1} ta="center" mb="xl">Training Summary</Title>
 
-      <Stack spacing="xl">
-        {(['tomasz', 'piotrek'] as const).map((user) => (
-          <Card key={user} shadow="sm" p="lg" radius="md" withBorder>
-            <Group position="apart" mb="md">
-              <Title order={2}>{user === 'tomasz' ? 'Tomasz' : 'Piotrek'}'s Progress</Title>
-              <Badge size="lg" variant="gradient" gradient={{ from: 'teal', to: 'blue' }}>
-                {userProgress[user].totalPoints} pts
-              </Badge>
-            </Group>
-
-            <Stack spacing="md">
-              <Group>
-                <ThemeIcon size="lg" radius="md" variant="light">
-                  <IconTrendingUp size={20} />
-                </ThemeIcon>
-                <Text size="lg" weight={500}>
-                  Consistency Score
-                </Text>
-              </Group>
-              <Progress
-                value={calculateConsistency(user)}
-                label={`${Math.round(calculateConsistency(user))}%`}
-                size="xl"
-                radius="xl"
-              />
-
-              <Divider />
-
-              <Group>
-                <ThemeIcon size="lg" radius="md" variant="light">
-                  <IconFlame size={20} />
-                </ThemeIcon>
-                <Text size="lg" weight={500}>
-                  Training Insights
-                </Text>
-              </Group>
-              <Stack spacing="xs">
-                {getProgressInsights(user).map((insight, index) => (
-                  <Text key={index} color="dimmed">
-                    • {insight}
+      <Stack gap="md">
+        <Group justify="center" mb="md">
+          {(['tomasz', 'piotrek'] as const).map((user) => (
+            <Card key={user} shadow="sm" p="lg" radius="md" withBorder>
+              <Stack gap="md">
+                <Group justify="flex-start">
+                  <ThemeIcon size="lg" radius="md" variant="light">
+                    <IconTrendingUp size={20} />
+                  </ThemeIcon>
+                  <Text size="lg" fw={500}>
+                    Consistency Score
                   </Text>
-                ))}
-              </Stack>
+                </Group>
+                <Progress
+                  value={calculateConsistency(user)}
+                  size="xl"
+                  radius="xl"
+                >
+                  {`${Math.round(calculateConsistency(user))}%`}
+                </Progress>
 
-              <Divider />
+                <Divider />
 
-              <Group>
-                <ThemeIcon size="lg" radius="md" variant="light">
-                  <IconTarget size={20} />
-                </ThemeIcon>
-                <Text size="lg" weight={500}>
-                  Personal Trainer's Note
+                <Text size="lg" fw={500}>
+                  Progress Insights
                 </Text>
-              </Group>
-              <Text color="dimmed">
-                {getPersonalTrainerNote(user)}
-              </Text>
 
-              <Divider />
-
-              <Group>
-                <ThemeIcon size="lg" radius="md" variant="light">
-                  <IconClock size={20} />
-                </ThemeIcon>
-                <Text size="lg" weight={500}>
-                  Next Steps
-                </Text>
-              </Group>
-              <Stack spacing="xs">
-                {getNextSteps(user).map((step, index) => (
-                  <Text key={index} color="dimmed">
-                    • {step}
-                  </Text>
-                ))}
+                <Stack gap="md">
+                  {getProgressInsights(user).map((insight, index) => (
+                    <Text key={index} c="dimmed">
+                      • {insight}
+                    </Text>
+                  ))}
+                </Stack>
               </Stack>
-            </Stack>
-          </Card>
-        ))}
+            </Card>
+          ))}
+        </Group>
+
+        <Stack gap="md">
+          <Text size="lg" fw={700}>Progress Insights</Text>
+          {getProgressInsights('tomasz').map((insight, index) => (
+            <Text key={index} color="dimmed">
+              • {insight}
+            </Text>
+          ))}
+        </Stack>
+
+        <Text size="lg" fw={700}>Progress Overview</Text>
+
+        <Stack gap="md">
+          <Group justify="flex-start">
+            <ThemeIcon size="lg" radius="md" variant="light">
+              <IconTrendingUp size={20} />
+            </ThemeIcon>
+            <Text size="lg" fw={500}>
+              Consistency Score
+            </Text>
+          </Group>
+          <Progress
+            value={calculateConsistency('tomasz')}
+            size="xl"
+            radius="xl"
+          >
+            {`${Math.round(calculateConsistency('tomasz'))}%`}
+          </Progress>
+        </Stack>
+
+        <Text size="lg" fw={700}>Achievements</Text>
+
+        <Stack gap="md">
+          {getProgressInsights('tomasz').map((insight, index) => (
+            <Text key={index} color="dimmed">
+              • {insight}
+            </Text>
+          ))}
+        </Stack>
       </Stack>
     </Container>
   );

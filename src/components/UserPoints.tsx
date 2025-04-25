@@ -55,15 +55,15 @@ export function UserPoints({ username, points, showConfetti = false }: UserPoint
           gravity={0.3}
         />
       )}
-      <Group position="apart" align="center" spacing="xs">
-        <Text size="lg" weight={700}>
+      <Group justify="space-between" align="center" gap="xs">
+        <Text c="dark" size="lg" fw={700}>
           {username}
         </Text>
         <Badge
           size="xl"
           variant="gradient"
           gradient={{ from: 'teal', to: 'blue', deg: 60 }}
-          sx={{ padding: '0.5rem 1rem' }}
+          style={{ padding: '0.5rem 1rem' }}
         >
           {points} pts
         </Badge>

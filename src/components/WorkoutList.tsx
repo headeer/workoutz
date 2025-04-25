@@ -162,7 +162,7 @@ export function WorkoutList({ trainingId, workouts, onExerciseComplete }: Workou
   const progress = Math.round((completedExercises / totalExercises) * 100);
 
   return (
-    <Stack spacing="xl" className="workout-list">
+    <Stack gap="xl" className="workout-list">
       {activeTimer && (
         <div className="timer-container">
           <Timer
@@ -174,11 +174,11 @@ export function WorkoutList({ trainingId, workouts, onExerciseComplete }: Workou
       )}
       
       <Paper shadow="xs" p="md" className="progress-card">
-        <Group position="apart" mb="xs">
-          <Text size="lg" weight={700}>
+        <Group justify="space-between" mb="xs">
+          <Text c="dark" size="lg" fw={700}>
             Postęp treningu
           </Text>
-          <Text size="lg" weight={700} color={progress === 100 ? "green" : "blue"}>
+          <Text size="lg" fw={700} c={progress === 100 ? "green" : "blue"}>
             {progress}%
           </Text>
         </Group>
@@ -219,7 +219,7 @@ export function WorkoutList({ trainingId, workouts, onExerciseComplete }: Workou
       >
         <Stack>
           <Text>Masz już aktywny timer. Czy chcesz go zastąpić nowym?</Text>
-          <Group position="apart">
+          <Group justify="space-between">
             <Button variant="light" onClick={handleCancelNewTimer}>
               Anuluj
             </Button>

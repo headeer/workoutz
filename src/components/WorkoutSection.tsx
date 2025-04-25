@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Accordion, Text, Stack, Checkbox, Button, Group, Modal, Badge, ActionIcon } from '@mantine/core';
-import { IconVideo, IconPlayerPlay } from '@tabler/icons-react';
+import { IconVideo, IconPlayerPlay, IconClock } from '@tabler/icons-react';
 import { WorkoutSection as WorkoutSectionType } from '../types';
 
 interface WorkoutSectionProps {
@@ -36,9 +36,9 @@ export function WorkoutSection({ section, onStartTimer, onExerciseComplete }: Wo
 
     if (Array.isArray(exercise.sets)) {
       return (
-        <Stack spacing={4} className="sets-container">
+        <Stack gap={4} className="sets-container">
           {exercise.sets.map((set: any, idx: number) => (
-            <Group key={idx} position="apart" spacing={8} className="set-item">
+            <Group key={idx} justify="space-between" gap={8} className="set-item">
               <Text size="sm" className="set-description">
                 {set.description || `Seria ${idx + 1}: ${set.reps || ''}`}
               </Text>
@@ -46,7 +46,7 @@ export function WorkoutSection({ section, onStartTimer, onExerciseComplete }: Wo
                 <Button
                   size="xs"
                   variant="light"
-                  leftIcon={<IconPlayerPlay size={14} />}
+                  leftSection={<IconPlayerPlay size={14} />}
                   onClick={() => onStartTimer(parseInt(set.rest), `Przerwa po serii ${idx + 1}`)}
                   className="rest-button"
                 >
@@ -60,7 +60,7 @@ export function WorkoutSection({ section, onStartTimer, onExerciseComplete }: Wo
     }
 
     return (
-      <Group spacing={8} className="exercise-details">
+      <Group gap={8} className="exercise-details">
         <Badge size="lg">
           {exercise.sets} serie x {exercise.reps}
         </Badge>
@@ -68,7 +68,7 @@ export function WorkoutSection({ section, onStartTimer, onExerciseComplete }: Wo
           <Button
             size="xs"
             variant="light"
-            leftIcon={<IconPlayerPlay size={14} />}
+            leftSection={<IconPlayerPlay size={14} />}
             onClick={() => handleRestTimer(exercise)}
             className="rest-button"
           >
@@ -82,9 +82,9 @@ export function WorkoutSection({ section, onStartTimer, onExerciseComplete }: Wo
   return (
     <Accordion.Item value={section.title} className="workout-section">
       <Accordion.Control>
-        <Stack spacing={0}>
-          <Group position="apart">
-            <Text weight={600}>{section.title}</Text>
+        <Stack gap={0}>
+          <Group justify="space-between">
+            <Text fw={600}>{section.title}</Text>
             <Badge 
               color={section.exercises.every(e => e.isCompleted) ? "green" : "blue"}
               variant="light"
@@ -100,17 +100,17 @@ export function WorkoutSection({ section, onStartTimer, onExerciseComplete }: Wo
         </Stack>
       </Accordion.Control>
       <Accordion.Panel>
-        <Stack spacing={16}>
+        <Stack gap={16}>
           {section.exercises.map((exercise, index) => (
-            <Stack key={index} spacing={8} className="exercise-item">
-              <Group position="apart" noWrap>
-                <Group spacing={8} className="exercise-main">
+            <Stack key={index} gap={8} className="exercise-item">
+              <Group justify="space-between" wrap="nowrap">
+                <Group gap={8} className="exercise-main">
                   <Checkbox
                     checked={exercise.isCompleted}
                     onChange={(event) => onExerciseComplete(index, event.currentTarget.checked)}
                     className="exercise-checkbox"
                   />
-                  <Stack spacing={4} className="exercise-info">
+                  <Stack gap={4} className="exercise-info">
                     <Text 
                       className={exercise.isCompleted ? "completed-exercise" : ""}
                     >
@@ -119,7 +119,7 @@ export function WorkoutSection({ section, onStartTimer, onExerciseComplete }: Wo
                     {(exercise.duration || exercise.reps) && renderSets(exercise)}
                   </Stack>
                 </Group>
-                <Group spacing={8} className="exercise-actions">
+                <Group gap={8} className="exercise-actions">
                   {exercise.videoUrl && (
                     <ActionIcon
                       color="blue"
@@ -133,7 +133,7 @@ export function WorkoutSection({ section, onStartTimer, onExerciseComplete }: Wo
                     <Button
                       size="xs"
                       variant="light"
-                      leftIcon={<IconPlayerPlay size={14} />}
+                      leftSection={<IconPlayerPlay size={14} />}
                       onClick={() => handleStartTimer(exercise.duration!, exercise.name)}
                     >
                       Start

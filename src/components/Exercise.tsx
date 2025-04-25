@@ -17,9 +17,9 @@ interface ExerciseProps {
 
 export function Exercise({ exercise, onComplete }: ExerciseProps) {
   return (
-    <Group position="apart" align="center">
+    <Group justify="space-between" align="center">
       <div>
-        <Text weight={500}>{exercise.name}</Text>
+        <Text fw={500}>{exercise.name}</Text>
         {exercise.sets && (
           <Text size="sm" color="dimmed">
             {exercise.sets} sets × {exercise.reps}

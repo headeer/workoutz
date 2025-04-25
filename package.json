@@ -1,44 +1,38 @@
 {
   "name": "training-plan-app",
+  "version": "0.1.0",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview",
-    "server": "json-server --watch db.json --port 3000"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@emotion/react": "^11.11.3",
-    "@mantine/core": "^6.0.21",
-    "@mantine/dates": "^6.0.21",
-    "@mantine/hooks": "^6.0.21",
+    "@mantine/core": "^7.5.0",
+    "@mantine/dates": "^7.5.0",
+    "@mantine/form": "^7.5.0",
+    "@mantine/hooks": "^7.5.0",
+    "@mantine/notifications": "^7.5.0",
+    "@supabase/supabase-js": "^2.39.0",
     "@tabler/icons-react": "^3.31.0",
-    "@vercel/node": "^3.0.0",
     "canvas-confetti": "^1.9.3",
-    "dayjs": "^1.11.10",
-    "json-server": "^0.17.4",
-    "react": "^18.2.0",
+    "next": "14.1.0",
+    "react": "^18",
     "react-confetti": "^6.4.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^7.5.2",
-    "tabler-icons-react": "^1.56.0",
-    "vercel": "^41.6.2"
+    "react-dom": "^18",
+    "tabler-icons-react": "^1.48.0"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
-    "@types/react": "^18.2.43",
-    "@types/react-dom": "^18.2.17",
-    "@typescript-eslint/eslint-plugin": "^6.14.0",
-    "@typescript-eslint/parser": "^6.14.0",
-    "@vitejs/plugin-react": "^4.2.1",
-    "eslint": "^8.55.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.5",
-    "terser": "^5.28.1",
-    "typescript": "^5.2.2",
-    "vite": "^5.0.8"
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.0.1",
+    "eslint": "^8",
+    "eslint-config-next": "14.1.0",
+    "postcss": "^8",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5"
   }
 }

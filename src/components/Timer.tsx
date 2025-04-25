@@ -68,7 +68,7 @@ export function Timer({ duration, label, onComplete }: TimerProps) {
           <Text size="lg" mb={4}>
             {label}
           </Text>
-          <Text size="xl" weight={700} mb={8} style={{ fontSize: '2rem' }}>
+          <Text size="xl" fw={700} mb={8} style={{ fontSize: '2rem' }}>
             {formatTime(timeLeft)}
           </Text>
           <Progress
@@ -76,7 +76,7 @@ export function Timer({ duration, label, onComplete }: TimerProps) {
             size="xl"
             radius="xl"
             color={timeLeft <= 5 ? "red" : "blue"}
-            animate
+            animated
           />
         </Box>
       </Box>
