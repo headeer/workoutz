@@ -4,6 +4,7 @@ import { WorkoutDay } from '../types';
 import { WorkoutSection } from './WorkoutSection';
 import { Timer } from './Timer';
 import { Exercise } from './Exercise';
+import { ENDPOINTS } from '../config';
 
 type UserId = 'tomasz' | 'piotrek';
 
@@ -25,7 +26,7 @@ export function WorkoutList({ trainingId, workouts, onExerciseComplete }: Workou
     setLoading(true);
     setError(null);
     
-    fetch('http://localhost:3000/workouts')
+    fetch(ENDPOINTS.workouts)
       .then((res) => {
         if (!res.ok) {
           throw new Error('Failed to fetch workouts');
