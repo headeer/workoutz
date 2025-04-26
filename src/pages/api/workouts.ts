@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 export async function getWorkouts(userName?: string) {
   let query = supabase.from('workouts').select(`
     *,
-    sections (
+    workout_sections (
       *,
       exercises (
         *,
@@ -27,7 +27,7 @@ export async function getWorkoutById(id: number) {
     .from('workouts')
     .select(`
       *,
-      sections (
+      workout_sections (
         *,
         exercises (
           *,

@@ -1,191 +1,244 @@
+import { Text, Group, Button, Stack, Paper, Modal, LoadingOverlay, Badge, ThemeIcon, ActionIcon, Tooltip, Collapse } from '@mantine/core';
 import { useState } from 'react';
-import { Accordion, Text, Stack, Checkbox, Button, Group, Modal, Badge, ActionIcon } from '@mantine/core';
-import { IconVideo, IconPlayerPlay, IconClock } from '@tabler/icons-react';
-import { WorkoutSection as WorkoutSectionType } from '../types';
+import { Exercise } from '../types/workout';
+import { IconPlayerPlay, IconCheck, IconClock, IconInfoCircle, IconBarbell, IconChevronDown, IconChevronUp, IconVideo } from '@tabler/icons-react';
+import { useLanguage } from '../lib/LanguageContext';
+import { CompletionFeedback } from './CompletionFeedback';
+import { completeExercise } from '../lib/exerciseService';
 
 interface WorkoutSectionProps {
-  section: WorkoutSectionType;
-  onStartTimer: (duration: number, label: string) => void;
-  onExerciseComplete: (exerciseIndex: number, isCompleted: boolean) => void;
+  name: string;
+  exercises: Exercise[];
+  onExerciseComplete: (exerciseId: string) => Promise<void>;
+  onStartTimer: (duration: number) => void;
+  userId: string;
 }
 
-export function WorkoutSection({ section, onStartTimer, onExerciseComplete }: WorkoutSectionProps) {
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const isMobile = window.innerWidth <= 768;
+export function WorkoutSection({ name, exercises = [], onExerciseComplete, onStartTimer, userId }: WorkoutSectionProps) {
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [expandedExercises, setExpandedExercises] = useState<{ [key: string]: boolean }>({});
+  const [completionFeedback, setCompletionFeedback] = useState<{
+    isOpen: boolean;
+    points: number;
+    streakBonus: number;
+    achievements: Array<{ id: string; name: string; description: string; icon: string; }>;
+  }>({
+    isOpen: false,
+    points: 0,
+    streakBonus: 0,
+    achievements: []
+  });
+  const { t } = useLanguage();
 
-  const handleStartTimer = (timeStr: string, exerciseName: string) => {
-    const seconds = parseTimeString(timeStr);
-    if (seconds) {
-      onStartTimer(seconds, exerciseName);
+  const getVideoId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const toggleExercise = (exerciseId: string) => {
+    setExpandedExercises(prev => ({
+      ...prev,
+      [exerciseId]: !prev[exerciseId]
+    }));
+  };
+
+  const handleExerciseComplete = async (exerciseId: string) => {
+    try {
+      setLoading(true);
+      const result = await completeExercise(exerciseId, userId);
+      
+      if (result.success) {
+        await onExerciseComplete(exerciseId);
+        setCompletionFeedback({
+          isOpen: true,
+          points: result.points,
+          streakBonus: result.points - 10, // Base points are 10
+          achievements: result.achievements || []
+        });
+      }
+    } catch (error) {
+      console.error('Error completing exercise:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const parseTimeString = (timeStr: string): number | null => {
-    const match = timeStr.match(/(\d+)\s*sekund/);
-    return match ? parseInt(match[1]) : null;
-  };
-
-  const handleRestTimer = (exercise: any) => {
-    if (exercise.restTime) {
-      onStartTimer(exercise.restTime, `Przerwa - ${exercise.name}`);
-    }
-  };
-
-  const renderSets = (exercise: any) => {
-    if (!exercise.sets) return null;
-
-    if (Array.isArray(exercise.sets)) {
-      return (
-        <Stack gap={4} className="sets-container">
-          {exercise.sets.map((set: any, idx: number) => (
-            <Group key={idx} justify="space-between" gap={8} className="set-item">
-              <Text size="sm" className="set-description">
-                {set.description || `Seria ${idx + 1}: ${set.reps || ''}`}
-              </Text>
-              {set.rest && (
-                <Button
-                  size="xs"
-                  variant="light"
-                  leftSection={<IconPlayerPlay size={14} />}
-                  onClick={() => onStartTimer(parseInt(set.rest), `Przerwa po serii ${idx + 1}`)}
-                  className="rest-button"
-                >
-                  {set.rest}s
-                </Button>
-              )}
-            </Group>
-          ))}
-        </Stack>
-      );
-    }
-
+  if (!exercises || exercises.length === 0) {
     return (
-      <Group gap={8} className="exercise-details">
-        <Badge size="lg">
-          {exercise.sets} serie x {exercise.reps}
-        </Badge>
-        {exercise.restTime > 0 && (
-          <Button
-            size="xs"
-            variant="light"
-            leftSection={<IconPlayerPlay size={14} />}
-            onClick={() => handleRestTimer(exercise)}
-            className="rest-button"
-          >
-            {exercise.restTime}s
-          </Button>
-        )}
-      </Group>
+      <Paper p="md" radius="md" withBorder>
+        <Text c="dimmed" ta="center">{t('workouts.noExercises')}</Text>
+      </Paper>
     );
-  };
+  }
 
   return (
-    <Accordion.Item value={section.title} className="workout-section">
-      <Accordion.Control>
-        <Stack gap={0}>
-          <Group justify="space-between">
-            <Text fw={600}>{section.title}</Text>
-            <Badge 
-              color={section.exercises.every(e => e.isCompleted) ? "green" : "blue"}
-              variant="light"
+    <Stack gap="md" p="md">
+      <LoadingOverlay visible={loading} />
+      {exercises.map((exercise) => {
+        const isExpanded = expandedExercises[exercise.id] ?? false;
+
+        return (
+          <Paper 
+            key={exercise.id} 
+            shadow="sm" 
+            radius="md" 
+            withBorder
+            style={{
+              borderColor: exercise.is_completed ? 'var(--mantine-color-green-6)' : undefined,
+              backgroundColor: exercise.is_completed ? 'var(--mantine-color-green-0)' : undefined,
+            }}
+          >
+            <Group 
+              justify="space-between" 
+              p="md" 
+              style={{ cursor: 'pointer' }}
+              onClick={() => toggleExercise(exercise.id.toString())}
             >
-              {section.exercises.filter(e => e.isCompleted).length}/{section.exercises.length}
-            </Badge>
-          </Group>
-          {section.description && (
-            <Text size="sm" color="dimmed">
-              {section.description}
-            </Text>
-          )}
-        </Stack>
-      </Accordion.Control>
-      <Accordion.Panel>
-        <Stack gap={16}>
-          {section.exercises.map((exercise, index) => (
-            <Stack key={index} gap={8} className="exercise-item">
-              <Group justify="space-between" wrap="nowrap">
-                <Group gap={8} className="exercise-main">
-                  <Checkbox
-                    checked={exercise.isCompleted}
-                    onChange={(event) => onExerciseComplete(index, event.currentTarget.checked)}
-                    className="exercise-checkbox"
-                  />
-                  <Stack gap={4} className="exercise-info">
-                    <Text 
-                      className={exercise.isCompleted ? "completed-exercise" : ""}
-                    >
-                      {exercise.name}
-                    </Text>
-                    {(exercise.duration || exercise.reps) && renderSets(exercise)}
-                  </Stack>
-                </Group>
-                <Group gap={8} className="exercise-actions">
-                  {exercise.videoUrl && (
-                    <ActionIcon
-                      color="blue"
-                      variant="light"
-                      onClick={() => setVideoUrl(exercise.videoUrl!)}
-                    >
-                      <IconVideo size={18} />
-                    </ActionIcon>
+              <Group gap="sm">
+                <ThemeIcon 
+                  size="lg" 
+                  radius="md" 
+                  color={exercise.is_completed ? "green" : "blue"} 
+                  variant="light"
+                >
+                  {isExpanded ? <IconChevronUp size={20} /> : <IconChevronDown size={20} />}
+                </ThemeIcon>
+                <Stack gap={0}>
+                  <Text size="lg" fw={500}>{exercise.name}</Text>
+                  {exercise.description && (
+                    <Text size="sm" c="dimmed">{exercise.description}</Text>
                   )}
-                  {exercise.duration && !exercise.reps && !exercise.sets && (
-                    <Button
-                      size="xs"
-                      variant="light"
-                      leftSection={<IconPlayerPlay size={14} />}
-                      onClick={() => handleStartTimer(exercise.duration!, exercise.name)}
+                </Stack>
+              </Group>
+              <Group gap="xs">
+                <Badge 
+                  size="sm" 
+                  variant="light" 
+                  color={exercise.is_completed ? "green" : "blue"}
+                >
+                  {exercise.sets || 0} {t('common.sets')}
+                </Badge>
+                {exercise.video_url && (
+                  <Tooltip label={t('workouts.watchVideo')}>
+                    <ActionIcon 
+                      variant="light" 
+                      color="blue"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedVideo(exercise.video_url || null);
+                      }}
                     >
-                      Start
+                      <IconVideo size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                )}
+                <Tooltip label={t('workouts.exerciseDetails')}>
+                  <ActionIcon variant="light" color="gray">
+                    <IconInfoCircle size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            </Group>
+
+            <Collapse in={isExpanded}>
+              <Stack gap="md" p="md">
+                {exercise.notes && (
+                  <Paper p="sm" radius="md" withBorder>
+                    <Text size="sm" c="dimmed">{exercise.notes}</Text>
+                  </Paper>
+                )}
+
+                <Group gap="xs">
+                  {exercise.reps && (
+                    <Badge size="sm" variant="light" color={exercise.is_completed ? "green" : "blue"} leftSection={<IconBarbell size={12} />}>
+                      {exercise.reps} {t('common.reps')}
+                    </Badge>
+                  )}
+                  {exercise.weight && (
+                    <Badge size="sm" variant="light" color={exercise.is_completed ? "green" : "blue"}>
+                      {exercise.weight} {t('common.kg')}
+                    </Badge>
+                  )}
+                  {exercise.duration && (
+                    <Badge size="sm" variant="light" color={exercise.is_completed ? "green" : "blue"} leftSection={<IconClock size={12} />}>
+                      {exercise.duration}
+                    </Badge>
+                  )}
+                </Group>
+
+                <Group justify="space-between">
+                  <Button
+                    variant="light"
+                    color="blue"
+                    leftSection={<IconClock size={16} />}
+                    onClick={() => exercise.rest_time && onStartTimer(exercise.rest_time)}
+                    disabled={!exercise.rest_time}
+                  >
+                    {t('workouts.startRestTimer')}
+                  </Button>
+                  {exercise.is_completed ? (
+                    <Button
+                      variant="light"
+                      color="green"
+                      leftSection={<IconCheck size={16} />}
+                      disabled
+                    >
+                      {t('workouts.alreadyCompleted')}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="light"
+                      color="green"
+                      leftSection={<IconCheck size={16} />}
+                      onClick={() => handleExerciseComplete(exercise.id.toString())}
+                      loading={loading}
+                    >
+                      {t('workouts.markComplete')}
                     </Button>
                   )}
                 </Group>
-              </Group>
-              
-              {exercise.description && (
-                <Text size="sm" color="dimmed" className="exercise-description">
-                  {exercise.description}
-                </Text>
-              )}
-              
-              {exercise.notes && (
-                <Text size="sm" color="dimmed" className="exercise-notes">
-                  {exercise.notes}
-                </Text>
-              )}
-            </Stack>
-          ))}
-        </Stack>
-      </Accordion.Panel>
+              </Stack>
+            </Collapse>
+          </Paper>
+        );
+      })}
 
       <Modal
-        opened={!!videoUrl}
-        onClose={() => setVideoUrl(null)}
-        title="Instrukcja Video"
-        size={isMobile ? "100%" : "lg"}
-        fullScreen={isMobile}
-        transitionProps={{ transition: 'slide-up' }}
-        className="video-modal"
-        styles={{
-          body: {
-            padding: isMobile ? 0 : '16px',
-          },
-          header: {
-            margin: isMobile ? '8px 16px' : 0,
-          }
-        }}
+        opened={!!selectedVideo}
+        onClose={() => setSelectedVideo(null)}
+        size="xl"
+        title={t('workouts.exerciseVideo')}
       >
-        <div className="video-wrapper">
-          {videoUrl && (
+        {selectedVideo && (
+          <div style={{ position: 'relative', paddingTop: '56.25%' }}>
+            <LoadingOverlay visible={loading} />
             <iframe
-              className="exercise-video"
-              src={videoUrl.replace('youtu.be/', 'youtube.com/embed/')}
+              src={`https://www.youtube.com/embed/${getVideoId(selectedVideo)}`}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                border: 0,
+              }}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
+              onLoad={() => setLoading(false)}
             />
-          )}
-        </div>
+          </div>
+        )}
       </Modal>
-    </Accordion.Item>
+
+      <CompletionFeedback
+        isOpen={completionFeedback.isOpen}
+        onClose={() => setCompletionFeedback(prev => ({ ...prev, isOpen: false }))}
+        points={completionFeedback.points}
+        streakBonus={completionFeedback.streakBonus}
+        achievements={completionFeedback.achievements}
+      />
+    </Stack>
   );
 } 

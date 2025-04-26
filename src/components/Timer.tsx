@@ -1,85 +1,138 @@
 import { useState, useEffect, useRef } from 'react';
-import { Paper, Text, Progress, Box, ActionIcon } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import { Text, Button, Group, Stack, ActionIcon, Progress } from '@mantine/core';
+import { IconPlayerPlay, IconPlayerPause, IconPlayerStop, IconRefresh } from '@tabler/icons-react';
 
 interface TimerProps {
   duration: number;
   label: string;
-  onComplete: () => void;
+  onComplete?: () => void;
+  onStop?: () => void;
 }
 
-export function Timer({ duration, label, onComplete }: TimerProps) {
+export function Timer({ duration, label, onComplete, onStop }: TimerProps) {
   const [timeLeft, setTimeLeft] = useState(duration);
-  const progress = ((duration - timeLeft) / duration) * 100;
-  const timerRef = useRef<number>();
+  const [isRunning, setIsRunning] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (timeLeft <= 0) {
-      onComplete();
-      return;
-    }
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
-    timerRef.current = window.setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
+  useEffect(() => {
+    if (isRunning && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            setIsRunning(false);
+            setIsComplete(true);
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+            }
+            onComplete?.();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
-  }, [timeLeft, onComplete]);
+  }, [isRunning, timeLeft, onComplete]);
 
-  // Reset timer if duration changes
-  useEffect(() => {
-    setTimeLeft(duration);
-  }, [duration]);
-
-  const formatTime = (seconds: number): string => {
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleCancel = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    onComplete();
+  const handleStart = () => {
+    setIsRunning(true);
+    setIsComplete(false);
   };
+
+  const handlePause = () => {
+    setIsRunning(false);
+  };
+
+  const handleStop = () => {
+    setIsRunning(false);
+    setTimeLeft(duration);
+    setIsComplete(false);
+    onStop?.();
+  };
+
+  const handleReset = () => {
+    setTimeLeft(duration);
+    setIsComplete(false);
+  };
+
+  const progress = (timeLeft / duration) * 100;
 
   return (
-    <Paper shadow="sm" p="md" withBorder style={{ background: 'white' }}>
-      <Box style={{ position: 'relative' }}>
+    <Stack gap="xs" className="timer-container">
+      <Text size="sm" fw={500} ta="center">
+        {label}
+      </Text>
+      <Text size="xl" fw={700} ta="center" className={isComplete ? 'timer-complete' : ''}>
+        {formatTime(timeLeft)}
+      </Text>
+      <Progress
+        value={progress}
+        size="sm"
+        color={isComplete ? 'green' : 'blue'}
+        className="timer-progress"
+      />
+      <Group justify="center" gap="xs">
+        {!isRunning && !isComplete && (
+          <ActionIcon
+            variant="light"
+            color="blue"
+            size="lg"
+            onClick={handleStart}
+            className="timer-button"
+          >
+            <IconPlayerPlay size={20} />
+          </ActionIcon>
+        )}
+        {isRunning && (
+          <ActionIcon
+            variant="light"
+            color="blue"
+            size="lg"
+            onClick={handlePause}
+            className="timer-button"
+          >
+            <IconPlayerPause size={20} />
+          </ActionIcon>
+        )}
         <ActionIcon
-          style={{
-            position: 'absolute',
-            top: -8,
-            right: -8,
-            zIndex: 2
-          }}
-          color="gray"
           variant="light"
-          onClick={handleCancel}
+          color="red"
+          size="lg"
+          onClick={handleStop}
+          className="timer-button"
         >
-          <IconX size={16} />
+          <IconPlayerStop size={20} />
         </ActionIcon>
-        <Box style={{ textAlign: 'center' }}>
-          <Text size="lg" mb={4}>
-            {label}
-          </Text>
-          <Text size="xl" fw={700} mb={8} style={{ fontSize: '2rem' }}>
-            {formatTime(timeLeft)}
-          </Text>
-          <Progress
-            value={progress}
-            size="xl"
-            radius="xl"
-            color={timeLeft <= 5 ? "red" : "blue"}
-            animated
-          />
-        </Box>
-      </Box>
-    </Paper>
+        <ActionIcon
+          variant="light"
+          color="gray"
+          size="lg"
+          onClick={handleReset}
+          className="timer-button"
+        >
+          <IconRefresh size={20} />
+        </ActionIcon>
+      </Group>
+    </Stack>
   );
 } 

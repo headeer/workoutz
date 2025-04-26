@@ -23,11 +23,11 @@ export interface WorkoutSection {
 }
 
 export interface WorkoutDay {
-  id: number;
+  id: string;
   name: string;
-  dayTrigger: string;
-  user: string;
-  sections: WorkoutSection[];
+  day_trigger: string;
+  user_name: string;
+  workout_sections: WorkoutSection[];
 }
 
 export interface Progress {

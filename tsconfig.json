@@ -9,33 +9,39 @@
     }
   ],
   "compilerOptions": {
+    "target": "es2017",
+    "module": "commonjs",
     "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
+      "es2017",
+      "dom"
     ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": false,
-    "noEmit": true,
-    "incremental": true,
+    "strict": true,
     "esModuleInterop": true,
-    "module": "esnext",
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
     "moduleResolution": "node",
     "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
+    "allowJs": true,
+    "noEmit": true,
+    "incremental": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "plugins": [
       {
         "name": "next"
       }
-    ],
-    "strictNullChecks": true
+    ]
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*",
     ".next/types/**/*.ts"
   ],
   "exclude": [

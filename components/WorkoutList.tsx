@@ -1,5 +1,5 @@
-import { Accordion, Text, Stack, Checkbox, Button, Group, Container, Title } from '@mantine/core';
-import { useState } from 'react';
+import { Accordion, Text, Stack, Checkbox, Button, Group, Container, Title, Alert } from '@mantine/core';
+import { useState, useEffect } from 'react';
 import { updateExercise } from '../src/pages/api/workouts';
 import { supabase } from '../src/lib/supabase';
 import { WorkoutSection } from '../src/components/WorkoutSection';
@@ -22,6 +22,7 @@ interface Section {
   id: number;
   title: string;
   description?: string;
+  order_index: number;
   exercises: Exercise[];
 }
 
@@ -30,7 +31,7 @@ interface Workout {
   name: string;
   day_trigger: string;
   user_name: string;
-  sections: Section[];
+  workout_sections: Section[];
 }
 
 interface WorkoutListProps {
@@ -42,11 +43,39 @@ interface WorkoutListProps {
 
 export function WorkoutList({ trainingId, workouts, onExerciseComplete, onStartTimer }: WorkoutListProps) {
   const [completedExercises, setCompletedExercises] = useState<{ [key: number]: boolean }>({});
-  const workout = workouts.find(w => w.id === trainingId);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [workout, setWorkout] = useState<Workout | null>(null);
 
-  if (!workout) {
-    return <Text>Loading...</Text>;
-  }
+  useEffect(() => {
+    const fetchWorkout = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('workouts')
+          .select(`
+            *,
+            workout_sections (
+              *,
+              exercises (
+                *,
+                exercise_sets (*)
+              )
+            )
+          `)
+          .eq('id', trainingId)
+          .maybeSingle();
+
+        if (error) throw error;
+        setWorkout(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch workout');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkout();
+  }, [trainingId]);
 
   const handleExerciseComplete = async (exerciseId: number, isCompleted: boolean) => {
     try {
@@ -71,24 +100,23 @@ export function WorkoutList({ trainingId, workouts, onExerciseComplete, onStartT
     }
   };
 
-  const renderExerciseDetails = (exercise: Exercise) => {
-    const details: string[] = [];
+  if (loading) {
+    return <Text>Loading workout...</Text>;
+  }
 
-    if (exercise.sets) details.push(`Sets: ${exercise.sets}`);
-    if (exercise.reps) details.push(`Reps: ${exercise.reps}`);
-    if (exercise.duration) details.push(`Duration: ${exercise.duration}`);
-    if (exercise.weight) details.push(`Weight: ${exercise.weight}`);
-    if (exercise.rest_time) details.push(`Rest: ${exercise.rest_time}s`);
-    if (exercise.description) details.push(exercise.description);
+  if (error) {
+    return <Alert color="red" title="Error">{error}</Alert>;
+  }
 
-    return details.join(' | ');
-  };
+  if (!workout) {
+    return <Alert color="blue" title="Info">Workout not found. Please check if the workout ID is correct.</Alert>;
+  }
 
   return (
     <Container>
       <Title order={2} mb="md">{workout.name}</Title>
       <Accordion>
-        {workout.sections.map((section) => (
+        {workout.workout_sections.map((section) => (
           <WorkoutSection
             key={section.id}
             section={section}

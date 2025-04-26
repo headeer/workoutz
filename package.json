@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:scripts": "tsc --project tsconfig.scripts.json",
+    "query-progress": "npm run build:scripts && node dist/scripts/queryUserProgress.js"
   },
   "dependencies": {
     "@mantine/core": "^7.5.0",

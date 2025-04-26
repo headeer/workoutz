@@ -20,7 +20,7 @@ interface UserProgress {
 interface Workout {
   id: number;
   name: string;
-  sections: {
+  workout_sections: {
     name: string;
     exercises: {
       name: string;

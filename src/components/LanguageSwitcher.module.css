@@ -1,0 +1,39 @@
+.languageButton {
+  display: block;
+  padding: var(--mantine-spacing-xs);
+  border-radius: var(--mantine-radius-sm);
+  color: var(--mantine-color-text);
+  background-color: transparent;
+  border: 1px solid var(--mantine-color-gray-3);
+  position: relative;
+  overflow: hidden;
+  transition: all 150ms ease;
+}
+
+.languageButton:hover {
+  background-color: var(--mantine-color-blue-light);
+  transform: translateY(-1px);
+  box-shadow: var(--mantine-shadow-xs);
+}
+
+.languageButton:active {
+  transform: translateY(1px);
+}
+
+.languageButton[data-active] {
+  background-color: var(--mantine-color-blue-light);
+  border-color: var(--mantine-color-blue-filled);
+}
+
+.flag {
+  font-size: 1.2rem;
+  line-height: 1;
+  position: relative;
+}
+
+.checkIcon {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: var(--mantine-color-blue-filled);
+} 

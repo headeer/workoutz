@@ -1,234 +1,175 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Accordion, Paper, Stack, Text, Alert, Button, Group, Modal, Card, Badge } from '@mantine/core';
-import { WorkoutDay } from '../types';
+import { Title, Text, Stack, Group, Paper, Badge, Button, Collapse, ThemeIcon, ActionIcon, Tooltip, LoadingOverlay } from '@mantine/core';
 import { WorkoutSection } from './WorkoutSection';
-import { Timer } from './Timer';
-import { Exercise } from './Exercise';
-import { ENDPOINTS } from '../config';
-
-type UserId = 'tomasz' | 'piotrek';
+import { WorkoutDay } from '../types/workout';
+import { IconChevronDown, IconChevronUp, IconClock, IconInfoCircle, IconRefresh } from '@tabler/icons-react';
+import { useState } from 'react';
+import { useLanguage } from '../lib/LanguageContext';
+import { resetWorkout } from '../lib/exerciseService';
+import { notifications } from '@mantine/notifications';
 
 interface WorkoutListProps {
-  trainingId: number;
+  trainingId: string;
   workouts: WorkoutDay[];
-  onExerciseComplete: (userId: UserId, points: number) => void;
+  onExerciseComplete: (exerciseId: string) => Promise<void>;
+  onStartTimer: (duration: number) => void;
+  userId: string;
 }
 
-export function WorkoutList({ trainingId, workouts, onExerciseComplete }: WorkoutListProps) {
-  const [workoutsState, setWorkoutsState] = useState<WorkoutDay[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTimer, setActiveTimer] = useState<{ duration: number; label: string } | null>(null);
-  const [showTimerConfirmModal, setShowTimerConfirmModal] = useState(false);
-  const [pendingTimer, setPendingTimer] = useState<{ duration: number; label: string } | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    
-    fetch(ENDPOINTS.workouts)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error('Failed to fetch workouts');
-        }
-        return res.json();
-      })
-      .then((data) => {
-        setWorkoutsState(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, [trainingId]);
-
-  const handleTimerComplete = useCallback(() => {
-    setActiveTimer(null);
-    // Play sound when timer completes
-    const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-    audio.play();
-  }, []);
-
-  const handleStartTimer = useCallback((duration: number, label: string) => {
-    if (activeTimer) {
-      setPendingTimer({ duration, label });
-      setShowTimerConfirmModal(true);
-    } else {
-      setActiveTimer({ duration, label });
-    }
-  }, [activeTimer]);
-
-  const handleConfirmNewTimer = () => {
-    if (pendingTimer) {
-      setActiveTimer(pendingTimer);
-      setPendingTimer(null);
-    }
-    setShowTimerConfirmModal(false);
-  };
-
-  const handleCancelNewTimer = () => {
-    setPendingTimer(null);
-    setShowTimerConfirmModal(false);
-  };
-
-  const handleExerciseComplete = useCallback((workout: WorkoutDay, exercise: any) => {
-    // Mark exercise as completed
-    exercise.isCompleted = true;
-
-    // Award points for exercise completion
-    onExerciseComplete(workout.user as UserId, 5);
-
-    // Check if all exercises in the current section are completed
-    const currentSection = workout.sections.find(section => 
-      section.exercises.includes(exercise)
-    );
-    
-    if (currentSection) {
-      const allExercisesInSectionCompleted = currentSection.exercises.every(
-        (ex: any) => ex.isCompleted
-      );
-
-      if (allExercisesInSectionCompleted) {
-        // Award bonus points for completing all exercises in a section
-        onExerciseComplete(workout.user as UserId, 25);
-      }
-    }
-
-    // Check if all exercises in the workout are completed
-    const allExercisesCompleted = workout.sections.every((section: any) =>
-      section.exercises.every((ex: any) => ex.isCompleted)
-    );
-
-    if (allExercisesCompleted) {
-      // Award bonus points for completing all exercises in the workout
-      onExerciseComplete(workout.user as UserId, 50);
-    }
-  }, [onExerciseComplete]);
-
-  const resetProgress = async () => {
-    const workout = workoutsState.find(w => w.id === trainingId);
-    if (!workout) return;
-
-    const updatedWorkouts = [...workoutsState];
-    const workoutIndex = updatedWorkouts.findIndex(w => w.id === trainingId);
-    
-    updatedWorkouts[workoutIndex].sections.forEach(section => {
-      section.exercises.forEach(exercise => {
-        exercise.isCompleted = false;
-      });
-    });
-
-    try {
-      await fetch(`http://localhost:3000/workouts/${trainingId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedWorkouts[workoutIndex]),
-      });
-      setWorkoutsState(updatedWorkouts);
-    } catch (err) {
-      console.error('Failed to reset progress:', err);
-    }
-  };
-
-  if (loading) {
-    return <Text>Wczytywanie planu treningowego...</Text>;
-  }
-
-  if (error) {
-    return (
-      <Alert color="red" title="Błąd">
-        {error}. Sprawdź czy serwer JSON jest uruchomiony (npm run server).
-      </Alert>
-    );
-  }
-
-  const workout = workoutsState.find(w => w.id === trainingId);
+export function WorkoutList({ trainingId, workouts, onExerciseComplete, onStartTimer, userId }: WorkoutListProps) {
+  const workout = workouts.find(w => w.id === trainingId);
+  const [expandedSections, setExpandedSections] = useState<{ [key: number]: boolean }>({});
+  const [isResetting, setIsResetting] = useState(false);
+  const { t } = useLanguage();
 
   if (!workout) {
-    return (
-      <Alert color="blue" title="Info">
-        Plan treningowy {trainingId} jest w przygotowaniu...
-      </Alert>
-    );
+    return <Text>{t('common.noData')}</Text>;
   }
 
-  const completedExercises = workout.sections.reduce((total, section) => 
-    total + section.exercises.filter(e => e.isCompleted).length, 0);
-  const totalExercises = workout.sections.reduce((total, section) => 
-    total + section.exercises.length, 0);
-  const progress = Math.round((completedExercises / totalExercises) * 100);
+  const estimatedTime = workout.workout_sections?.reduce((total, section) => {
+    const exercises = section.exercises || [];
+    return total + exercises.reduce((sectionTotal, exercise) => {
+      return sectionTotal + (exercise.rest_time || 0);
+    }, 0);
+  }, 0) || 0;
+
+  const toggleSection = (sectionId: number) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
+  const handleReset = async () => {
+    try {
+      setIsResetting(true);
+      const result = await resetWorkout(trainingId);
+      
+      if (result.success) {
+        notifications.show({
+          title: t('workouts.resetSuccess'),
+          message: t('workouts.resetMessage'),
+          color: 'blue'
+        });
+        // Refresh the page to show updated state
+        window.location.reload();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      notifications.show({
+        title: t('common.error'),
+        message: t('workouts.resetError'),
+        color: 'red'
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const totalExercises = workout.workout_sections?.reduce((total, section) => 
+    total + (section.exercises?.length || 0), 0) || 0;
+  
+  const completedExercises = workout.workout_sections?.reduce((total, section) => 
+    total + (section.exercises?.filter(e => e.is_completed)?.length || 0), 0) || 0;
+
+  const isWorkoutCompleted = totalExercises > 0 && completedExercises === totalExercises;
 
   return (
-    <Stack gap="xl" className="workout-list">
-      {activeTimer && (
-        <div className="timer-container">
-          <Timer
-            duration={activeTimer.duration}
-            label={activeTimer.label}
-            onComplete={handleTimerComplete}
-          />
-        </div>
-      )}
-      
-      <Paper shadow="xs" p="md" className="progress-card">
-        <Group justify="space-between" mb="xs">
-          <Text c="dark" size="lg" fw={700}>
-            Postęp treningu
-          </Text>
-          <Text size="lg" fw={700} c={progress === 100 ? "green" : "blue"}>
-            {progress}%
-          </Text>
-        </Group>
-        <Text size="sm" color="dimmed" mb="md">
-          Ukończono {completedExercises} z {totalExercises} ćwiczeń
-        </Text>
-        <Button 
-          variant="light" 
-          color="red" 
-          fullWidth 
-          onClick={resetProgress}
-          disabled={completedExercises === 0}
-        >
-          Resetuj postęp
-        </Button>
-      </Paper>
-
-      <Paper shadow="xs" p="md">
-        <Accordion variant="separated">
-          {workout.sections.map((section, sectionIndex) => (
-            <WorkoutSection
-              key={sectionIndex}
-              section={section}
-              onStartTimer={handleStartTimer}
-              onExerciseComplete={(exerciseIndex: number) => 
-                handleExerciseComplete(workout, section.exercises[exerciseIndex])
-              }
-            />
-          ))}
-        </Accordion>
-      </Paper>
-
-      <Modal
-        opened={showTimerConfirmModal}
-        onClose={handleCancelNewTimer}
-        title="Aktywny timer"
-        size="sm"
-      >
-        <Stack>
-          <Text>Masz już aktywny timer. Czy chcesz go zastąpić nowym?</Text>
-          <Group justify="space-between">
-            <Button variant="light" onClick={handleCancelNewTimer}>
-              Anuluj
-            </Button>
-            <Button color="blue" onClick={handleConfirmNewTimer}>
-              Zastąp timer
-            </Button>
+    <Stack gap="md" pos="relative">
+      <LoadingOverlay visible={isResetting} />
+      <Paper shadow="sm" p="md" radius="md" withBorder>
+        <Group justify="space-between" align="center">
+          <Stack gap={0}>
+            <Title order={2}>{workout.name}</Title>
+            <Group gap="xs" mt={4}>
+              <ThemeIcon size="sm" radius="md" color="gray" variant="light">
+                <IconClock size={14} />
+              </ThemeIcon>
+              <Text size="sm" c="dimmed">
+                {t('workouts.estimatedTime').replace('{0}', Math.floor(estimatedTime / 60).toString())}
+              </Text>
+            </Group>
+          </Stack>
+          <Group gap="md">
+            <Badge 
+              size="lg" 
+              variant="light" 
+              color={isWorkoutCompleted ? "green" : "blue"}
+            >
+              {completedExercises}/{totalExercises} {t('common.exercises')}
+            </Badge>
+            <Tooltip label={t('workouts.resetWorkout')}>
+              <ActionIcon 
+                variant="light" 
+                color="blue" 
+                onClick={handleReset}
+                loading={isResetting}
+                disabled={completedExercises === 0}
+              >
+                <IconRefresh size={20} />
+              </ActionIcon>
+            </Tooltip>
           </Group>
-        </Stack>
-      </Modal>
+        </Group>
+      </Paper>
+      
+      {workout.workout_sections?.map((section) => {
+        const isExpanded = expandedSections[section.id] ?? true;
+        const completedInSection = section.exercises?.filter(e => e.is_completed)?.length || 0;
+        const totalInSection = section.exercises?.length || 0;
+
+        return (
+          <Paper key={section.id} shadow="sm" radius="md" withBorder>
+            <Group 
+              justify="space-between" 
+              p="md" 
+              style={{ cursor: 'pointer' }}
+              onClick={() => toggleSection(section.id)}
+            >
+              <Group gap="sm">
+                <ThemeIcon 
+                  size="lg" 
+                  radius="md" 
+                  color={completedInSection === totalInSection ? "green" : "blue"} 
+                  variant="light"
+                >
+                  {isExpanded ? <IconChevronUp size={20} /> : <IconChevronDown size={20} />}
+                </ThemeIcon>
+                <Stack gap={0}>
+                  <Text size="lg" fw={500}>{section.name}</Text>
+                  {section.description && (
+                    <Text size="sm" c="dimmed">{section.description}</Text>
+                  )}
+                </Stack>
+              </Group>
+              <Group gap="xs">
+                <Badge 
+                  size="sm" 
+                  variant="light" 
+                  color={completedInSection === totalInSection ? "green" : "blue"}
+                >
+                  {completedInSection}/{totalInSection} {t('common.exercises')}
+                </Badge>
+                <Tooltip label={t('workouts.sectionDetails')}>
+                  <ActionIcon variant="light" color="gray">
+                    <IconInfoCircle size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            </Group>
+
+            <Collapse in={isExpanded}>
+              <WorkoutSection
+                name={section.name}
+                exercises={section.exercises || []}
+                onExerciseComplete={onExerciseComplete}
+                onStartTimer={onStartTimer}
+                userId={userId}
+              />
+            </Collapse>
+          </Paper>
+        );
+      })}
     </Stack>
   );
 } 
