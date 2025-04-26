@@ -3,11 +3,20 @@
 import { Group, Button } from '@mantine/core';
 import { IconBarbell, IconChartBar } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useLanguage } from '../src/lib/LanguageContext';
-import { LanguageSwitcher } from '../src/components/LanguageSwitcher';
+import { useLanguage } from '../lib/LanguageContext';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { useEffect, useState } from 'react';
+import { getUserProgress } from '../pages/api/userProgress';
 
 export function Navigation() {
   const { t } = useLanguage();
+  const [piotrekPoints, setPiotrekPoints] = useState<number>(0);
+  const [tomekPoints, setTomekPoints] = useState<number>(0);
+
+  useEffect(() => {
+    getUserProgress('piotrek').then((data) => setPiotrekPoints(data?.total_points || 0));
+    getUserProgress('tomasz').then((data) => setTomekPoints(data?.total_points || 0));
+  }, []);
 
   return (
     <>
@@ -24,6 +33,7 @@ export function Navigation() {
             color="blue"
             size="md"
             leftSection={<IconBarbell size={16} />}
+            rightSection={<span style={{ marginLeft: 8, fontWeight: 600, color: '#845ef7' }}>{piotrekPoints} pts</span>}
           >
             {t('workouts.piotr')}
           </Button>
@@ -34,6 +44,7 @@ export function Navigation() {
             color="green"
             size="md"
             leftSection={<IconBarbell size={16} />}
+            rightSection={<span style={{ marginLeft: 8, fontWeight: 600, color: '#40c057' }}>{tomekPoints} pts</span>}
           >
             {t('workouts.tomek')}
           </Button>

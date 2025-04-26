@@ -10,7 +10,7 @@ export interface Achievement {
 }
 
 export interface UserStats {
-  points: number;
+  total_points: number;
   completed_exercises: number;
   completed_workouts: number;
   streak_days: number;
@@ -68,14 +68,14 @@ export const ACHIEVEMENTS: Achievement[] = [
   }
 ];
 
-export const calculateLevel = (points: number): number => {
-  return Math.floor(Math.sqrt(points / 100)) + 1;
+export const calculateLevel = (totalPoints: number): number => {
+  return Math.floor(Math.sqrt(totalPoints / 100)) + 1;
 };
 
-export const pointsToNextLevel = (currentPoints: number): number => {
-  const currentLevel = calculateLevel(currentPoints);
+export const pointsToNextLevel = (totalPoints: number): number => {
+  const currentLevel = calculateLevel(totalPoints);
   const pointsNeeded = Math.pow(currentLevel, 2) * 100;
-  return pointsNeeded - currentPoints;
+  return pointsNeeded - totalPoints;
 };
 
 export async function updateUserProgress(
@@ -102,7 +102,7 @@ export async function updateUserProgress(
   // Check for new achievements
   const updatedStats = {
     ...stats,
-    points: stats.points + pointsEarned,
+    total_points: stats.total_points + pointsEarned,
   };
 
   const unlockedAchievements = await checkAchievements(userId, updatedStats);
@@ -114,11 +114,11 @@ export async function updateUserProgress(
     .from('user_progress')
     .upsert({
       user_id: userId,
-      points: stats.points + pointsEarned,
+      total_points: stats.total_points + pointsEarned,
       completed_exercises: type === 'exercise' ? stats.completed_exercises + 1 : stats.completed_exercises,
       completed_workouts: type === 'workout' ? stats.completed_workouts + 1 : stats.completed_workouts,
       streak_days: type === 'streak' ? stats.streak_days + 1 : stats.streak_days,
-      level: calculateLevel(stats.points + pointsEarned),
+      level: calculateLevel(stats.total_points + pointsEarned),
       updated_at: new Date().toISOString(),
     });
 
@@ -195,7 +195,7 @@ export async function getUserProgress(userId: string) {
   return {
     ...progress,
     achievements: allAchievements,
-    level: calculateLevel(progress.points),
-    pointsToNextLevel: pointsToNextLevel(progress.points),
+    level: calculateLevel(progress.total_points),
+    pointsToNextLevel: pointsToNextLevel(progress.total_points),
   };
 } 

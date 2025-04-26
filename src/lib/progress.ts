@@ -101,7 +101,7 @@ export const updateProgress = async (
 
     // Calculate updates
     const updates = {
-      points: currentProgress.points,
+      total_points: currentProgress.total_points,
       completed_exercises: currentProgress.completed_exercises,
       completed_days: currentProgress.completed_days,
       completed_weeks: currentProgress.completed_weeks,
@@ -111,33 +111,33 @@ export const updateProgress = async (
     };
 
     if (update.exerciseCompleted) {
-      updates.points += POINTS.EXERCISE_COMPLETION;
+      updates.total_points += POINTS.EXERCISE_COMPLETION;
       updates.completed_exercises += 1;
     }
 
     if (update.workoutCompleted) {
-      updates.points += POINTS.WORKOUT_COMPLETION;
+      updates.total_points += POINTS.WORKOUT_COMPLETION;
       updates.completed_days += 1;
       updates.total_workouts += 1;
       
       // Check if we completed a week
       if (updates.completed_days % 7 === 0) {
         updates.completed_weeks += 1;
-        updates.points += POINTS.STREAK_MILESTONE;
+        updates.total_points += POINTS.STREAK_MILESTONE;
       }
     }
 
     if (update.streakUpdated) {
       updates.streak_days += 1;
       if (updates.streak_days % 7 === 0) {
-        updates.points += POINTS.STREAK_MILESTONE;
+        updates.total_points += POINTS.STREAK_MILESTONE;
       }
     }
 
     // Update level based on points
-    const newLevel = calculateLevel(updates.points);
+    const newLevel = calculateLevel(updates.total_points);
     if (newLevel > currentProgress.level) {
-      updates.points += POINTS.LEVEL_UP_BONUS;
+      updates.total_points += POINTS.LEVEL_UP_BONUS;
     }
 
     // Update progress in database
@@ -160,7 +160,7 @@ export const updateProgress = async (
     const newAchievements = ACHIEVEMENTS.filter(achievement => 
       !existingAchievements.has(achievement.id) && 
       achievement.condition({
-        points: updates.points,
+        total_points: updates.total_points,
         completed_exercises: updates.completed_exercises,
         completed_workouts: updates.total_workouts,
         streak_days: updates.streak_days,
@@ -169,18 +169,23 @@ export const updateProgress = async (
     );
 
     if (newAchievements.length > 0) {
-      await Promise.all(newAchievements.map(achievement => 
-        supabase
-          .from('user_achievements')
-          .insert({
-            user_id: userId,
-            achievement_id: achievement.id,
-            name: achievement.name,
-            description: achievement.description
-          })
-      ));
+      try {
+        await Promise.all(newAchievements.map(achievement => 
+          supabase
+            .from('user_achievements')
+            .insert({
+              user_id: userId,
+              achievement_id: achievement.id,
+              name: achievement.name,
+              description: achievement.description
+            })
+        ));
+      } catch (error) {
+        console.error('Error inserting achievements:', error);
+        // Continue without crashing if achievements table has issues
+      }
 
-      updates.points += newAchievements.length * POINTS.ACHIEVEMENT_UNLOCK;
+      updates.total_points += newAchievements.length * POINTS.ACHIEVEMENT_UNLOCK;
     }
 
     return {

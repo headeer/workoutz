@@ -1,5 +1,5 @@
-import { Paper, Text, Group, Stack, Progress, Badge, ThemeIcon, Grid, Card, RingProgress, ActionIcon, Tooltip, Transition, Box } from '@mantine/core';
-import { IconBarbell, IconFlame, IconTrophy, IconMedal, IconStar, IconStarFilled, IconHeartFilled, IconChartBar, IconInfoCircle, IconTrendingUp, IconCheck } from '@tabler/icons-react';
+import { Paper, Text, Group, Stack, Progress, Badge, ThemeIcon, Grid, Card, RingProgress, ActionIcon, Tooltip, Transition, Box, Button } from '@mantine/core';
+import { IconBarbell, IconFlame, IconTrophy, IconMedal, IconStar, IconStarFilled, IconHeartFilled, IconChartBar, IconInfoCircle, IconTrendingUp, IconCheck, IconRefresh } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MotivationalTips } from './MotivationalTips';
@@ -11,7 +11,7 @@ import type { translations } from '../lib/translations';
 interface TrainingSummaryProps {
   userId: string;
   userProgress: {
-    points: number;
+    total_points: number;
     completed_exercises: number;
     completed_days: number;
     completed_weeks: number;
@@ -38,9 +38,11 @@ interface TrainingSummaryProps {
       planned: boolean;
     }>;
   };
+  onRestartTraining?: () => void;
+  onResetDay?: (day: string) => void;
 }
 
-export function TrainingSummary({ userId, userProgress, rewards, weeklyProgress }: TrainingSummaryProps) {
+export function TrainingSummary({ userId, userProgress, rewards, weeklyProgress, onRestartTraining, onResetDay }: TrainingSummaryProps) {
   const [hoveredAchievement, setHoveredAchievement] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const router = useRouter();
@@ -48,7 +50,7 @@ export function TrainingSummary({ userId, userProgress, rewards, weeklyProgress 
 
   const calculateLevelProgress = () => {
     const pointsPerLevel = 1000;
-    const currentPoints = userProgress.points % pointsPerLevel;
+    const currentPoints = userProgress.total_points % pointsPerLevel;
     return (currentPoints / pointsPerLevel) * 100;
   };
 
@@ -96,7 +98,7 @@ export function TrainingSummary({ userId, userProgress, rewards, weeklyProgress 
     {
       id: 'points',
       title: t('stats.totalPoints'),
-      value: userProgress.points,
+      value: userProgress.total_points,
       icon: <IconStar size={24} />,
       color: 'yellow',
       progress: calculateLevelProgress(),
@@ -121,7 +123,9 @@ export function TrainingSummary({ userId, userProgress, rewards, weeklyProgress 
     {
       id: 'completion',
       title: t('stats.completionRate'),
-      value: `${Math.round((userProgress.completed_exercises / (userProgress.total_workouts * 10)) * 100)}%`,
+      value: `${userProgress.total_workouts > 0 
+        ? Math.min(100, Math.round((userProgress.completed_exercises / Math.max(1, userProgress.total_workouts * 5)) * 100))
+        : 0}%`,
       icon: <IconChartBar size={24} />,
       color: 'green',
       subtitle: t('stats.exercisesCompleted').replace('{0}', userProgress.completed_exercises.toString())
@@ -229,6 +233,23 @@ export function TrainingSummary({ userId, userProgress, rewards, weeklyProgress 
                         </ThemeIcon>
                       )}
                     </Transition>
+                    
+                    {day.completed && onResetDay && (
+                      <Tooltip label={t('workouts.resetWorkout')} position="bottom">
+                        <ActionIcon 
+                          variant="light" 
+                          color="blue" 
+                          size="sm" 
+                          mt={5}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onResetDay(`day${index + 1}`);
+                          }}
+                        >
+                          <IconRefresh size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    )}
                   </Stack>
                   {day.completed && (
                     <div
@@ -290,7 +311,35 @@ export function TrainingSummary({ userId, userProgress, rewards, weeklyProgress 
       </Card>
 
       <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Text fw={700} size="lg" mb="md">{t('stats.achievements')}</Text>
+        <Group justify="space-between" align="center" mb="md">
+          <Text fw={700} size="lg">{t('stats.achievements')}</Text>
+          <Group>
+            <Button
+              leftSection={<IconBarbell size={18} />}
+              variant="light"
+              color="blue"
+              onClick={() => router.push(userId === 'piotrek' ? '/piotr' : '/tomek')}
+              size="sm"
+            >
+              {t('workouts.viewWorkouts') || "View Workouts"}
+            </Button>
+            <Tooltip label={t('workouts.resetWorkoutsKeepPoints') || "Reset workouts while preserving points"}>
+              <Button
+                leftSection={<IconRefresh size={18} />}
+                variant="light"
+                color="blue"
+                onClick={() => {
+                  if (onRestartTraining) {
+                    onRestartTraining();
+                  }
+                }}
+                size="sm"
+              >
+                {t('workouts.resetWorkouts') || "Reset Workouts"}
+              </Button>
+            </Tooltip>
+          </Group>
+        </Group>
         <Grid>
           {rewards.achievements.map((achievement) => (
             <Grid.Col key={achievement.id} span={{ base: 12, sm: 6, md: 4 }}>
@@ -319,10 +368,16 @@ export function TrainingSummary({ userId, userProgress, rewards, weeklyProgress 
                   <div>
                     <Text fw={500}>{achievement.name}</Text>
                     <Text size="sm" c="dimmed">{achievement.description}</Text>
-                    {achievement.achieved && (
+                    {achievement.achieved ? (
                       <Badge color="yellow" variant="light" mt="xs">
                         {t('stats.unlocked')}
                       </Badge>
+                    ) : (
+                      <Tooltip label={t('achievements.locked')} transitionProps={{ transition: 'pop', duration: 200 }}>
+                        <Badge color="gray" variant="light" mt="xs">
+                          {t('achievements.locked')}
+                        </Badge>
+                      </Tooltip>
                     )}
                   </div>
                 </Group>

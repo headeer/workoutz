@@ -1,23 +1,42 @@
 'use client';
 
-import { Title, Tabs, Alert, Container, Paper, Group, Text, Stack, ThemeIcon, Loader, Center } from '@mantine/core';
+import { Title, Tabs, Alert, Container, Paper, Group, Text, Stack, ThemeIcon, Loader, Center, Badge, Button } from '@mantine/core';
 import { useEffect, useState } from 'react';
-import { WorkoutList } from '../../src/components/WorkoutList';
-import { WorkoutDay } from '../../src/types/workout';
-import { supabase } from '../../src/lib/supabaseClient';
-import { IconBarbell, IconCalendar } from '@tabler/icons-react';
-import { useLanguage } from '../../src/lib/LanguageContext';
+import { WorkoutList } from '../../components/WorkoutList';
+import { WorkoutDay } from '../../types/workout';
+import { supabase } from '../../lib/supabaseClient';
+import { IconBarbell, IconCalendar, IconRefresh } from '@tabler/icons-react';
+import { useLanguage } from '../../lib/LanguageContext';
+import { getUserProgress } from '../../pages/api/userProgress';
 
 export default function TomekWorkouts() {
   const [workouts, setWorkouts] = useState<WorkoutDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>('day1');
+  const [points, setPoints] = useState<number>(0);
+  const [needsRefresh, setNeedsRefresh] = useState(false);
   const { t } = useLanguage();
 
   useEffect(() => {
     const fetchWorkouts = async () => {
       try {
+        // Check if workouts were recently reset
+        const resetTimestamp = localStorage.getItem('workout_reset_tomasz');
+        const cacheInvalidated = resetTimestamp && (Date.now() - parseInt(resetTimestamp)) < 60000; // Within last minute
+        
+        if (cacheInvalidated) {
+          // Clear reset timestamp
+          localStorage.removeItem('workout_reset_tomasz');
+          console.log('Workout reset detected');
+          
+          // Show refresh indicator instead of auto-refreshing
+          setNeedsRefresh(true);
+        }
+
+        // Force fetch from server by adding timestamp
+        const timestamp = Date.now();
+        
         const { data, error } = await supabase
           .from('workouts')
           .select(`
@@ -45,7 +64,7 @@ export default function TomekWorkouts() {
               )
             )
           `)
-          .eq('user_name', 'tomasz')
+          .eq('user_id', 'tomasz')
           .order('id');
 
         if (error) {
@@ -97,26 +116,89 @@ export default function TomekWorkouts() {
     fetchWorkouts();
   }, [t]);
 
-  const handleExerciseComplete = async (exerciseId: string) => {
+  useEffect(() => {
+    getUserProgress('tomasz').then((data) => {
+      setPoints(data?.total_points || 0);
+    });
+  }, []);
+
+  const handleExerciseComplete = async (exerciseId: string, pointsAdded = 10) => {
     try {
-      await supabase
+      // Find the exercise to update
+      let exerciseUpdated = false;
+      
+      // Update local state to reflect completion in the UI immediately
+      setWorkouts(prevWorkouts => {
+        const newWorkouts = prevWorkouts.map(workout => ({
+          ...workout,
+          workout_sections: workout.workout_sections?.map(section => ({
+            ...section,
+            exercises: section.exercises?.map(exercise => {
+              if (exercise.id.toString() === exerciseId && !exercise.is_completed) {
+                exerciseUpdated = true;
+                return { ...exercise, is_completed: true };
+              }
+              return exercise;
+            }) || []
+          })) || []
+        }));
+        
+        return newWorkouts;
+      });
+      
+      // If the exercise was already completed (not updated in our UI), don't proceed with the API call
+      if (!exerciseUpdated) {
+        return;
+      }
+
+      // Update points immediately in UI
+      setPoints(currentPoints => currentPoints + pointsAdded);
+
+      // Update exercise completion status in the database
+      const { error: exerciseError } = await supabase
         .from('exercises')
         .update({ is_completed: true })
         .eq('id', exerciseId);
 
-      setWorkouts(prevWorkouts => {
-        return prevWorkouts.map(workout => ({
-          ...workout,
-          workout_sections: workout.workout_sections?.map(section => ({
-            ...section,
-            exercises: section.exercises?.map(exercise => 
-              exercise.id.toString() === exerciseId
-                ? { ...exercise, is_completed: true }
-                : exercise
-            )
-          }))
-        }));
-      });
+      if (exerciseError) throw exerciseError;
+
+      // Get current user progress
+      const { data: progressData, error: progressError } = await supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', 'tomasz')
+        .single();
+
+      if (progressError && progressError.code !== 'PGRST116') {
+        throw progressError;
+      }
+
+      // If no progress record exists, create one
+      if (!progressData) {
+        const { error: createError } = await supabase
+          .from('user_progress')
+          .insert([{
+            user_id: 'tomasz',
+            total_points: pointsAdded,
+            completed_exercises: 1,
+            completed_days: 0,
+            completed_weeks: 0
+          }]);
+
+        if (createError) throw createError;
+      } else {
+        // Update existing progress
+        const newPoints = (progressData.total_points || 0) + pointsAdded;
+        const { error: updateError } = await supabase
+          .from('user_progress')
+          .update({
+            total_points: newPoints,
+            completed_exercises: (progressData.completed_exercises || 0) + 1
+          })
+          .eq('user_id', 'tomasz');
+
+        if (updateError) throw updateError;
+      }
 
       // Check if all exercises in current section are completed
       if (activeTab) {
@@ -136,6 +218,40 @@ export default function TomekWorkouts() {
           );
 
           if (allExercisesCompleted) {
+            // Update workout completion in the database
+            const { data: progressData, error: progressError } = await supabase
+              .from('user_progress')
+              .select('*')
+              .eq('user_id', 'tomasz')
+              .single();
+
+            if (progressData && !progressError) {
+              const today = new Date();
+              const lastUpdate = progressData.updated_at ? new Date(progressData.updated_at) : null;
+              const isNewDay = !lastUpdate || 
+                (today.getDate() !== lastUpdate.getDate() || 
+                 today.getMonth() !== lastUpdate.getMonth() || 
+                 today.getFullYear() !== lastUpdate.getFullYear());
+              
+              // Only increment streak if it's a new day
+              const newStreakDays = isNewDay ? progressData.streak_days + 1 : progressData.streak_days;
+              
+              // Update completion status
+              await supabase
+                .from('user_progress')
+                .update({
+                  total_points: progressData.total_points + 50, // Bonus for completing workout
+                  completed_days: progressData.completed_days + 1,
+                  total_workouts: progressData.total_workouts + 1,
+                  streak_days: newStreakDays,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('user_id', 'tomasz');
+              
+              // Update points in UI
+              setPoints(currentPoints => currentPoints + 50);
+            }
+
             // Move to next tab
             const tabs = ['day1', 'day2', 'day3', 'day4'];
             const currentTabIndex = tabs.indexOf(activeTab);
@@ -185,12 +301,34 @@ export default function TomekWorkouts() {
   return (
     <Container size="lg" py="xl">
       <Stack gap="xl">
+        {needsRefresh && (
+          <Alert 
+            color="blue" 
+            title="Workouts have been reset" 
+            withCloseButton
+            onClose={() => setNeedsRefresh(false)}
+          >
+            <Group align="center" gap="md">
+              <Text>Your workout progress has been reset. Reload the page to see the changes.</Text>
+              <Button 
+                color="blue" 
+                size="sm"
+                leftSection={<IconRefresh size={16} />}
+                onClick={() => window.location.reload()}
+              >
+                Reload Page
+              </Button>
+            </Group>
+          </Alert>
+        )}
+        
         <Group justify="space-between" align="center">
           <Group gap="sm">
             <ThemeIcon size="lg" radius="md" color="blue">
               <IconBarbell size={24} />
             </ThemeIcon>
             <Title order={1}>{t('workouts.tomek')}</Title>
+            <Badge color="grape" size="lg" ml="md">{points} pts</Badge>
           </Group>
           <Group gap="xs">
             <ThemeIcon size="sm" radius="md" color="gray" variant="light">
@@ -231,8 +369,17 @@ export default function TomekWorkouts() {
             {workouts.map((workout) => (
               <Tabs.Panel key={workout.id} value={workout.day_trigger} pt="md">
                 <WorkoutList
-                  trainingId={workout.id}
-                  workouts={workouts}
+                  trainingId={Number(workout.id)}
+                  workouts={workouts.map(w => ({
+                    ...w,
+                    id: Number(w.id),
+                    workout_sections: (w.workout_sections ?? []).map(section => ({
+                      ...section,
+                      title: section.name,
+                      order_index: (section as any).order_index ?? 0,
+                      exercises: section.exercises ?? []
+                    }))
+                  }))}
                   onExerciseComplete={handleExerciseComplete}
                   onStartTimer={handleStartTimer}
                   userId="tomasz"

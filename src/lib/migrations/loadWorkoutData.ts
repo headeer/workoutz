@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../supabaseClient';
 import { transformWorkoutData } from './transformWorkoutData';
 
 export async function loadWorkoutData() {
@@ -26,14 +26,15 @@ export async function loadWorkoutData() {
       if (workoutError) throw workoutError;
 
       // Load sections
+      if (!workout.workout_sections) continue;
       for (const section of workout.workout_sections) {
         const { data: sectionData, error: sectionError } = await supabase
           .from('workout_sections')
           .upsert({
             id: section.id,
-            title: section.title,
+            title: section.name,
             description: section.description,
-            order_index: section.order_index,
+            order_index: 0,
             workout_id: workout.id
           })
           .select()
@@ -42,7 +43,7 @@ export async function loadWorkoutData() {
         if (sectionError) throw sectionError;
 
         // Load exercises
-        for (const exercise of section.exercises) {
+        for (const exercise of section.exercises ?? []) {
           const { data: exerciseData, error: exerciseError } = await supabase
             .from('exercises')
             .upsert({
@@ -71,10 +72,9 @@ export async function loadWorkoutData() {
                 .from('exercise_sets')
                 .upsert({
                   id: set.id,
-                  rest: set.rest,
+                  rest: set.rest_time ?? 0,
                   reps: set.reps,
                   weight: set.weight,
-                  notes: set.notes,
                   exercise_id: exercise.id
                 });
 

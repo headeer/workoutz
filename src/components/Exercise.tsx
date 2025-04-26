@@ -76,7 +76,7 @@ export function Exercise({ exercise, index, onComplete, onStartTimer }: Exercise
         <Badge size="lg">
           {exercise.sets} serie x {exercise.reps}
         </Badge>
-        {exercise.restTime > 0 && (
+        {(exercise.restTime ?? 0) > 0 && (
           <Button
             size="xs"
             variant="light"

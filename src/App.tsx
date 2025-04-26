@@ -2,7 +2,7 @@ import React from 'react';
 import { MantineProvider } from '@mantine/core';
 import { WorkoutList } from './components/WorkoutList';
 import { UserPoints } from './components/UserPoints';
-import { supabase } from './lib/supabase';
+import { supabase } from './lib/supabaseClient';
 
 function App() {
   const [userId, setUserId] = React.useState<string | null>(null);
@@ -66,7 +66,9 @@ function App() {
     }
   }, [userId]);
 
-  const handleExerciseComplete = async (userId: string, pointsToAdd: number) => {
+  const handleExerciseComplete = async (exerciseId: string, pointsToAdd: number) => {
+    if (!userId) return;
+    
     const { data, error } = await supabase
       .from('user_progress')
       .upsert({
@@ -86,7 +88,9 @@ function App() {
         <WorkoutList
           trainingId={1}
           workouts={[]}
-          onExerciseComplete={handleExerciseComplete}
+          onExerciseComplete={async (exerciseId) => handleExerciseComplete(exerciseId, 10)}
+          onStartTimer={() => {}}
+          userId={userId || 'guest'}
         />
       </div>
     </MantineProvider>

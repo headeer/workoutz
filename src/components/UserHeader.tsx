@@ -4,12 +4,12 @@ import { useLanguage } from '../lib/LanguageContext';
 
 interface UserHeaderProps {
   name: string;
-  points: number;
+  total_points: number;
   level: number;
   streakDays: number;
 }
 
-export function UserHeader({ name, points, level, streakDays }: UserHeaderProps) {
+export function UserHeader({ name, total_points, level, streakDays }: UserHeaderProps) {
   const { t } = useLanguage();
 
   return (
@@ -22,7 +22,7 @@ export function UserHeader({ name, points, level, streakDays }: UserHeaderProps)
               <ThemeIcon size="sm" color="yellow" variant="light">
                 <IconStar size={14} />
               </ThemeIcon>
-              <Text size="sm" fw={500}>{points}</Text>
+              <Text size="sm" fw={500}>{total_points}</Text>
             </Group>
             <Text size="xs" c="dimmed">{t('common.points')}</Text>
           </Stack>

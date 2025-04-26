@@ -52,7 +52,7 @@ export async function completeExercise(
         .from('user_progress')
         .insert([{
           user_id: userId,
-          points: earnedPoints,
+          total_points: earnedPoints,
           completed_exercises: 1,
           completed_days: 1,
           completed_weeks: 0,
@@ -71,14 +71,14 @@ export async function completeExercise(
     }
 
     // Update existing progress
-    const newPoints = (progressData.points || 0) + earnedPoints;
+    const newPoints = (progressData.total_points || 0) + earnedPoints;
     const newLevel = Math.floor(newPoints / 1000) + 1;
     const completedExercises = (progressData.completed_exercises || 0) + 1;
 
     const { error: updateError } = await supabase
       .from('user_progress')
       .update({
-        points: newPoints,
+        total_points: newPoints,
         completed_exercises: completedExercises,
         level: newLevel
       })
